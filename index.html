@@ -6,142 +6,101 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-title" content="Gaz Lab"/>
 <title>⚗️ Gaz Laboratuvarı</title>
-<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,sans-serif;background:#f0f4f8;color:#1e293b}
-button{cursor:pointer;font-family:inherit}
+button{cursor:pointer;font-family:inherit;border:none}
 input{font-family:inherit}
+.header{background:white;border-bottom:1px solid #e2e8f0;padding:8px 14px;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.header-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.app-title{font-size:15px;font-weight:800}
+.app-sub{font-size:9px;color:#94a3b8}
+.tabs{display:flex;gap:2px;flex-wrap:wrap;margin-left:auto;background:#f8fafc;border-radius:10px;padding:3px;border:1px solid #e2e8f0}
+.tab{padding:6px 11px;border-radius:7px;border:none;font-size:11px;font-weight:600;background:transparent;color:#94a3b8;cursor:pointer}
+.tab.active{background:white;color:#6366f1;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.content{max-width:900px;margin:0 auto;padding:12px}
+.card{background:white;border-radius:12px;padding:10px 14px;margin-bottom:8px;border:1px solid #e2e8f0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn-open{padding:4px 10px;border-radius:7px;font-size:11px;font-weight:700}
+.slider-row{margin-bottom:10px}
+.slider-label-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.slider-label{font-size:11px;color:#64748b}
+.num-input{width:60px;padding:2px 5px;border-radius:6px;font-size:11px;font-weight:700;text-align:right;outline:none;border:1px solid #6366f1;background:#f8fafc}
+.unit{font-size:10px;color:#94a3b8;min-width:22px}
+.slider-bounds{display:flex;justify-content:space-between}
+.slider-bound{font-size:9px;color:#cbd5e1}
+input[type=range]{width:100%}
+.badge{border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700}
+.gas-btn{padding:2px 6px;border-radius:9px;font-size:10px;font-weight:700;cursor:pointer}
+.kap-card{flex:1 1 170px;border-radius:12px;padding:10px 12px}
+.kap-header{display:flex;justify-content:space-between;margin-bottom:7px}
+.kap-title{font-size:13px;font-weight:800}
+.kap-p{font-size:12px;font-weight:900}
+.gas-label{font-size:10px;color:#94a3b8;margin-bottom:4px;font-weight:600}
+.gas-btns{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:8px}
+.field-label{font-size:10px;color:#94a3b8;font-weight:600}
+.field-row{display:flex;align-items:center;gap:6px;margin-top:3px;margin-bottom:8px}
+.field-num{width:52px;padding:2px 4px;border-radius:6px;font-size:11px;font-weight:700;text-align:center;outline:none}
 </style>
 </head>
 <body>
-<div id="root"><div style="padding:20px;text-align:center;color:#64748b">Yükleniyor...</div></div>
-<script type="text/babel">
-const {useState,useEffect,useRef}=React;
-const R=0.0821;
+<div class="header">
+  <div class="header-inner">
+    <div>
+      <div class="app-title">⚗️ Gaz Laboratuvarı</div>
+      <div class="app-sub">PV=nRT · İdeal Pistonlar · Gaz Yasaları</div>
+    </div>
+    <div class="tabs" id="tabs"></div>
+  </div>
+</div>
+<div class="content" id="content"></div>
 
+<script>
+const R=0.0821;
 const GLIST=[
   {label:"He",color:"#a78bfa",bg:"#ede9fe"},{label:"H₂",color:"#eab308",bg:"#fefce8"},
   {label:"N₂",color:"#34d399",bg:"#d1fae5"},{label:"O₂",color:"#fb923c",bg:"#ffedd5"},
   {label:"CH₄",color:"#6366f1",bg:"#eef2ff"},{label:"Ne",color:"#f472b6",bg:"#fce7f3"},
   {label:"SO₃",color:"#f87171",bg:"#fee2e2"},{label:"CO₂",color:"#94a3b8",bg:"#f1f5f9"},
 ];
-const gI=l=>GLIST.find(g=>g.label===l)||GLIST[0];
+const gI=l=>GLIST.find(g=>g.label===l)||GLIST[GLIST.length-1];
 const iP=(n,T,V)=>V>0&&n>0?(n*R*T)/V:0;
 const tC=T=>{const t=Math.max(0,Math.min(1,(T-50)/950));return`hsl(${Math.round(240-t*240)},80%,45%)`;};
 const pC=P=>{const t=Math.max(0,Math.min(1,P/5));return`hsl(${Math.round(120-t*120)},70%,40%)`;};
+const fmt2=v=>parseFloat(v).toFixed(2);
+const fmt3=v=>parseFloat(v).toFixed(3);
 
-function Slider({label,value,min,max,step,unit,color,onChange}){
-  const [loc,setLoc]=useState(String(value));
-  const editing=useRef(false);
-  useEffect(()=>{if(!editing.current)setLoc(String(value));},[value]);
-  const acc=color||"#6366f1";
-  function commit(v){const n=parseFloat(v);if(!isNaN(n)){const c=Math.max(min,Math.min(max,n));onChange(c);setLoc(String(c));}else setLoc(String(value));}
-  return(
-    <div style={{marginBottom:10}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
-        <span style={{fontSize:11,color:"#64748b"}}>{label}</span>
-        <div style={{display:"flex",alignItems:"center",gap:4}}>
-          <input type="number" min={min} max={max} step={step} value={loc}
-            onFocus={()=>{editing.current=true;}}
-            onChange={e=>setLoc(e.target.value)}
-            onBlur={e=>{editing.current=false;commit(e.target.value);}}
-            onKeyDown={e=>{if(e.key==="Enter"){editing.current=false;commit(loc);e.target.blur();}}}
-            style={{width:60,padding:"2px 5px",borderRadius:6,border:`1px solid ${acc}`,background:"#f8fafc",color:acc,fontSize:11,fontWeight:700,textAlign:"right",outline:"none"}}/>
-          <span style={{fontSize:10,color:"#94a3b8",minWidth:22}}>{unit}</span>
-        </div>
-      </div>
-      <input type="range" min={min} max={max} step={step} value={value}
-        onChange={e=>{const v=parseFloat(e.target.value);onChange(v);setLoc(String(v));}}
-        style={{width:"100%",accentColor:acc}}/>
-      <div style={{display:"flex",justifyContent:"space-between"}}>
-        <span style={{fontSize:9,color:"#cbd5e1"}}>{min}</span>
-        <span style={{fontSize:9,color:"#cbd5e1"}}>{max}</span>
-      </div>
-    </div>
-  );
+// ── State ──────────────────────────────────────────────
+let state={
+  tab:"d4",
+  d3:{mol:0.5,T:300,P0:1.0,engel:6,open:false,addM:0.1},
+  d4:{
+    caps:[{gas:"Ne",mol:0.16,V:2,T:300},{gas:"Boş",mol:0,V:2,T:300},{gas:"SO₃",mol:0.24,V:1,T:300}],
+    valves:{m1:false,m2:false,m3:false}
+  }
+};
+let animTick=0;
+setInterval(()=>{animTick=(animTick+1)%60;render();},80);
+
+function setState(patch){
+  state={...state,...patch};
+  render();
 }
 
-// ── DÜZENEK 3 ─────────────────────────────────────────
-function D3(){
-  const [mol,setMol]=useState(0.5);
-  const [T,setT]=useState(300);
-  const [P0,setP0]=useState(1.0);
-  const [engel,setEngel]=useState(6);
-  const [open,setOpen]=useState(false);
-  const [addM,setAddM]=useState(0.1);
-  const [tick,setTick]=useState(0);
-  useEffect(()=>{const t=setInterval(()=>setTick(x=>x+1),80);return()=>clearInterval(t);},[]);
-  const V=mol*R*T/P0;
-  const hit=V>=engel;
-  const pV=hit?engel:V;
-  const fP=hit?(mol*R*T)/engel:P0;
-  const SW=860,SH=250,CY=45,CH=140,L=70,CW=680;
-  const sc=CW/12,pX=L+pV*sc,eX=L+engel*sc;
-  const cnt=Math.max(4,Math.min(16,Math.round(mol*10)));
-  const pts=Array.from({length:cnt},(_,i)=>{
-    const sp=0.15+(T/300)*0.35,sd=i*173+tick*sp;
-    const px=L+12+((Math.sin(sd*0.61+i)*0.5+0.5)*(Math.min(pX-L,CW)-24));
-    const py=CY+12+((Math.cos(sd*0.43+i*1.3)*0.5+0.5)*(CH-24));
-    return <circle key={i} cx={px} cy={py} r={4} fill="#1d4ed8" opacity={0.65}/>;
-  });
-  return(
-    <div>
-      <div style={{background:"white",borderRadius:12,padding:"10px 14px",marginBottom:8,border:"1px solid #e2e8f0"}}>
-        <div style={{fontSize:14,fontWeight:800,marginBottom:2}}>🚧 Düzenek 3 — Pistonlu + Engelli Silindir</div>
-        <div style={{fontSize:11,color:"#94a3b8"}}>Gaz ekle → Engele kadar İzobar (P sabit) → Engelten sonra İzokor (V sabit)</div>
-      </div>
-      <div style={{background:"white",borderRadius:10,padding:"8px 12px",marginBottom:8,border:"1px solid #e2e8f0",display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-        <button onClick={()=>setOpen(o=>!o)} style={{padding:"4px 10px",borderRadius:7,border:"none",fontSize:11,fontWeight:700,background:open?"#dcfce7":"#fee2e2",color:open?"#16a34a":"#dc2626",outline:open?"1.5px solid #22c55e":"1.5px solid #ef4444"}}>Musluk M: {open?"Açık":"Kapalı"}</button>
-        {open&&<>
-          <button onClick={()=>setMol(m=>Math.max(0.05,parseFloat((m-addM).toFixed(3))))} style={{width:24,height:24,borderRadius:5,border:"none",background:"#fee2e2",color:"#dc2626",fontWeight:700}}>−</button>
-          <Slider label="" value={addM} min={0.05} max={0.5} step={0.05} unit="mol" color="#22c55e" onChange={setAddM}/>
-          <button onClick={()=>setMol(m=>parseFloat((m+addM).toFixed(3)))} style={{width:24,height:24,borderRadius:5,border:"none",background:"#dcfce7",color:"#16a34a",fontWeight:700}}>+</button>
-        </>}
-        <div style={{background:hit?"#fee2e2":"#dcfce7",borderRadius:8,padding:"4px 10px",fontSize:11,fontWeight:700,color:hit?"#dc2626":"#16a34a"}}>{hit?"🔴 İzokor — V sabit":"🟢 İzobar — P sabit"}</div>
-        <button onClick={()=>{setMol(0.5);setOpen(false);}} style={{padding:"4px 10px",borderRadius:7,border:"1px solid #e2e8f0",background:"white",color:"#94a3b8",fontSize:10}}>↺ Sıfırla</button>
-      </div>
-      <svg viewBox={`0 0 ${SW} ${SH}`} width="100%" style={{display:"block",borderRadius:14,background:"white",border:"1px solid #e2e8f0",marginBottom:8}}>
-        <rect x={L} y={CY} width={CW} height={CH} fill="#f8fafc" stroke="#94a3b8" strokeWidth={2} rx={3}/>
-        <rect x={L} y={CY} width={Math.min(pX-L,CW)} height={CH} fill="#bfdbfe" opacity={0.7}/>
-        {pts}
-        <rect x={eX-4} y={CY-8} width={8} height={CH+16} fill="#334155" rx={2}/>
-        <text x={eX} y={CY-12} textAnchor="middle" fill="#334155" fontSize={10} fontWeight="700">Engel</text>
-        <ellipse cx={pX} cy={CY+CH/2} rx={11} ry={CH/2} fill="#94a3b8" stroke="#334155" strokeWidth={1.5}/>
-        <text x={pX} y={CY-8} textAnchor="middle" fill="#94a3b8" fontSize={8}>Piston</text>
-        <text x={L+Math.min(pX-L,CW)/2} y={CY+CH/2-8} textAnchor="middle" fill="#1e40af" fontSize={13} fontWeight="800">{mol.toFixed(3)} mol</text>
-        <text x={L+Math.min(pX-L,CW)/2} y={CY+CH/2+8} textAnchor="middle" fill={pC(fP)} fontSize={14} fontWeight="800">{fP.toFixed(3)} atm</text>
-        <text x={L+Math.min(pX-L,CW)/2} y={CY+CH/2+24} textAnchor="middle" fill="#0ea5e9" fontSize={11}>{pV.toFixed(3)} L</text>
-        <rect x={L-10} y={CY} width={10} height={CH} fill="#d1d5db" stroke="#94a3b8" strokeWidth={1.5}/>
-        <g onClick={()=>setOpen(o=>!o)} style={{cursor:"pointer"}}>
-          <circle cx={L-18} cy={CY+CH/2} r={11} fill={open?"#dcfce7":"#fee2e2"} stroke={open?"#22c55e":"#ef4444"} strokeWidth={2}/>
-          {open?<rect x={L-26} y={CY+CH/2-2.5} width={16} height={5} rx={2.5} fill="#22c55e"/>:<rect x={L-20.5} y={CY+CH/2-8} width={5} height={16} rx={2.5} fill="#ef4444"/>}
-          <text x={L-18} y={CY+CH/2+22} textAnchor="middle" fill={open?"#15803d":"#dc2626"} fontSize={8}>M</text>
-        </g>
-        {["A","B","C","D","E","F","G","H"].map((m,i)=>{
-          const mx=L+(i+0.5)*(CW/8);
-          return(<g key={m}><line x1={mx} y1={CY+CH} x2={mx} y2={CY+CH+8} stroke="#94a3b8" strokeWidth={1.5}/><text x={mx} y={CY+CH+18} textAnchor="middle" fill="#64748b" fontSize={10}>{m}</text></g>);
-        })}
-      </svg>
-      <div style={{background:"white",borderRadius:10,padding:14,border:"1px solid #e2e8f0",display:"flex",gap:12,flexWrap:"wrap"}}>
-        <div style={{flex:1,minWidth:140}}><Slider label="T (K)" value={T} min={50} max={1000} step={5} unit="K" color={tC(T)} onChange={setT}/></div>
-        <div style={{flex:1,minWidth:140}}><Slider label="P₀ (atm)" value={P0} min={0.5} max={3} step={0.1} unit="atm" color="#3b82f6" onChange={setP0}/></div>
-        <div style={{flex:1,minWidth:140}}><Slider label="Engel (L)" value={engel} min={2} max={10} step={0.5} unit="L" color="#334155" onChange={setEngel}/></div>
-      </div>
-    </div>
-  );
-}
-
-// ── DÜZENEK 4 ─────────────────────────────────────────
+// ── D4 logic ───────────────────────────────────────────
 function eqD4(caps,v){
   const par=[0,1,2];
   const find=x=>par[x]===x?x:(par[x]=find(par[x]));
   const union=(a,b)=>{par[find(a)]=find(b);};
   if(v.m1)union(0,1);if(v.m2)union(1,2);if(v.m3)union(0,2);
   const groups={};
-  for(let i=0;i<3;i++){const r=find(i);if(!groups[r])groups[r]={mol:0,svt:0,idx:[]};groups[r].mol+=caps[i].mol;groups[r].svt+=caps[i].V/caps[i].T;groups[r].idx.push(i);}
+  for(let i=0;i<3;i++){
+    const r=find(i);
+    if(!groups[r])groups[r]={mol:0,svt:0,idx:[]};
+    groups[r].mol+=caps[i].mol;
+    groups[r].svt+=caps[i].V/caps[i].T;
+    groups[r].idx.push(i);
+  }
   const nx=caps.map(c=>({...c}));
   for(const g of Object.values(groups)){
     if(g.idx.length<2)continue;
@@ -152,21 +111,58 @@ function eqD4(caps,v){
   }
   return nx;
 }
-const D4I=[{gas:"Ne",mol:0.16,V:2,T:300},{gas:"Boş",mol:0,V:2,T:300},{gas:"SO₃",mol:0.24,V:1,T:300}];
 const bR=V=>Math.max(42,Math.min(78,42+((V-0.5)/9.5)*36));
 
-function D4(){
-  const [caps,setCaps]=useState(D4I.map(c=>({...c})));
-  const [val,setVal]=useState({m1:false,m2:false,m3:false});
-  const [tick,setTick]=useState(0);
-  useEffect(()=>{const t=setInterval(()=>setTick(x=>(x+1)%60),80);return()=>clearInterval(t);},[]);
-  const tv=key=>{const nx={...val,[key]:!val[key]};setCaps(p=>eqD4(p,nx));setVal(nx);};
-  const ta=()=>{const a=Object.values(val).every(Boolean);const nx={m1:!a,m2:!a,m3:!a};setCaps(p=>eqD4(p,nx));setVal(nx);};
-  const rst=()=>{setCaps(D4I.map(c=>({...c})));setVal({m1:false,m2:false,m3:false});};
-  const upd=(i,f,v)=>setCaps(p=>{const nx=p.map((c,j)=>j===i?{...c,[f]:v}:c);return Object.values(val).some(Boolean)?eqD4(nx,val):nx;});
-  const chg=(i,g)=>setCaps(p=>{const nx=p.map((c,j)=>{if(j!==i)return c;return g==="Boş"?{...c,gas:"Boş",mol:0}:{...c,gas:g};});return Object.values(val).some(Boolean)?eqD4(nx,val):nx;});
+// ── SVG helpers ────────────────────────────────────────
+function svgEl(tag,attrs,children=""){
+  const a=Object.entries(attrs).map(([k,v])=>`${k}="${v}"`).join(" ");
+  return`<${tag} ${a}>${children}</${tag}>`;
+}
+
+function renderD3SVG(d3){
+  const {mol,T,P0,engel,open}=d3;
+  const V=mol*R*T/P0,hit=V>=engel,pV=hit?engel:V,fP=hit?(mol*R*T)/engel:P0;
+  const SW=860,SH=250,CY=45,CH=140,L=70,CW=680;
+  const sc=CW/12,pX=L+pV*sc,eX=L+engel*sc;
+  const cnt=Math.max(4,Math.min(16,Math.round(mol*10)));
+  let pts="";
+  for(let i=0;i<cnt;i++){
+    const sp=0.15+(T/300)*0.35,sd=i*173+animTick*sp;
+    const px=L+12+((Math.sin(sd*0.61+i)*0.5+0.5)*(Math.min(pX-L,CW)-24));
+    const py=CY+12+((Math.cos(sd*0.43+i*1.3)*0.5+0.5)*(CH-24));
+    pts+=`<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4" fill="#1d4ed8" opacity="0.65"/>`;
+  }
+  const mx=L+Math.min(pX-L,CW)/2;
+  const vc=open?"#22c55e":"#ef4444";
+  return`<svg viewBox="0 0 ${SW} ${SH}" width="100%" style="display:block;border-radius:14px;background:white;border:1px solid #e2e8f0;margin-bottom:8px">
+    <rect x="${L}" y="${CY}" width="${CW}" height="${CH}" fill="#f8fafc" stroke="#94a3b8" stroke-width="2" rx="3"/>
+    <rect x="${L}" y="${CY}" width="${Math.min(pX-L,CW).toFixed(1)}" height="${CH}" fill="#bfdbfe" opacity="0.7"/>
+    ${pts}
+    <rect x="${(eX-4).toFixed(1)}" y="${CY-8}" width="8" height="${CH+16}" fill="#334155" rx="2"/>
+    <text x="${eX.toFixed(1)}" y="${CY-12}" text-anchor="middle" fill="#334155" font-size="10" font-weight="700">Engel</text>
+    <ellipse cx="${pX.toFixed(1)}" cy="${CY+CH/2}" rx="11" ry="${CH/2}" fill="#94a3b8" stroke="#334155" stroke-width="1.5"/>
+    <text x="${pX.toFixed(1)}" y="${CY-8}" text-anchor="middle" fill="#94a3b8" font-size="8">Piston</text>
+    <text x="${mx.toFixed(1)}" y="${CY+CH/2-8}" text-anchor="middle" fill="#1e40af" font-size="13" font-weight="800">${mol.toFixed(3)} mol</text>
+    <text x="${mx.toFixed(1)}" y="${CY+CH/2+8}" text-anchor="middle" fill="${pC(fP)}" font-size="14" font-weight="800">${fP.toFixed(3)} atm</text>
+    <text x="${mx.toFixed(1)}" y="${CY+CH/2+24}" text-anchor="middle" fill="#0ea5e9" font-size="11">${pV.toFixed(3)} L</text>
+    <rect x="${L-10}" y="${CY}" width="10" height="${CH}" fill="#d1d5db" stroke="#94a3b8" stroke-width="1.5"/>
+    <g onclick="toggleD3Valve()" style="cursor:pointer">
+      <circle cx="${L-18}" cy="${CY+CH/2}" r="11" fill="${open?"#dcfce7":"#fee2e2"}" stroke="${vc}" stroke-width="2"/>
+      ${open?`<rect x="${L-26}" y="${CY+CH/2-2.5}" width="16" height="5" rx="2.5" fill="#22c55e"/>`:
+             `<rect x="${L-20.5}" y="${CY+CH/2-8}" width="5" height="16" rx="2.5" fill="#ef4444"/>`}
+      <text x="${L-18}" y="${CY+CH/2+22}" text-anchor="middle" fill="${vc}" font-size="8">M</text>
+    </g>
+    ${["A","B","C","D","E","F","G","H"].map((m,i)=>{
+      const mx2=L+(i+0.5)*(CW/8);
+      return`<line x1="${mx2.toFixed(1)}" y1="${CY+CH}" x2="${mx2.toFixed(1)}" y2="${CY+CH+8}" stroke="#94a3b8" stroke-width="1.5"/>
+             <text x="${mx2.toFixed(1)}" y="${CY+CH+18}" text-anchor="middle" fill="#64748b" font-size="10">${m}</text>`;
+    }).join("")}
+  </svg>`;
+}
+
+function renderD4SVG(d4){
+  const {caps,valves}=d4;
   const pr=caps.map(c=>c.V>0&&c.mol>=0?(c.mol*R*c.T)/c.V:0);
-  const allO=Object.values(val).every(Boolean);
   const W=500,H=340;
   const POS=[{cx:115,cy:125},{cx:385,cy:125},{cx:250,cy:265}];
   function pe(a,b){
@@ -175,68 +171,141 @@ function D4(){
     return{x1:POS[a].cx+nx*(r1+5),y1:POS[a].cy+ny*(r1+5),x2:POS[b].cx-nx*(r2+5),y2:POS[b].cy-ny*(r2+5),mx:(POS[a].cx+POS[b].cx)/2,my:(POS[a].cy+POS[b].cy)/2};
   }
   const PIPES=[{...pe(0,1),key:"m1",lb:"M1"},{...pe(1,2),key:"m2",lb:"M2"},{...pe(0,2),key:"m3",lb:"M3"}];
-  return(
-    <div style={{padding:"12px"}}>
-      <div style={{marginBottom:10}}>
-        <div style={{fontSize:14,fontWeight:800}}>🫧 Düzenek 4 — Balon Sistemi</div>
-        <div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>M1:1↔2 · M2:2↔3 · M3:1↔3 · Musluk açılınca mol transferi & basınç eşitlenmesi</div>
-      </div>
-      <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:10,alignItems:"center"}}>
-        {[{key:"m1",lb:"M1:1↔2"},{key:"m2",lb:"M2:2↔3"},{key:"m3",lb:"M3:1↔3"}].map(({key,lb})=>{
-          const o=val[key];
-          return(<button key={key} onClick={()=>tv(key)} style={{padding:"6px 12px",borderRadius:20,border:"none",fontSize:12,fontWeight:700,background:o?"#dcfce7":"#fee2e2",color:o?"#15803d":"#dc2626",outline:`2px solid ${o?"#22c55e":"#ef4444"}`}}>{lb}: {o?"Açık":"Kapalı"}</button>);
-        })}
-        <button onClick={ta} style={{padding:"6px 12px",borderRadius:20,border:"none",fontSize:12,fontWeight:700,background:allO?"#fef3c7":"#dcfce7",color:allO?"#d97706":"#15803d",outline:`2px solid ${allO?"#f59e0b":"#22c55e"}`}}>{allO?"Tümünü Kapat":"Tümünü Aç"}</button>
-        <button onClick={rst} style={{padding:"6px 10px",borderRadius:20,border:"1.5px solid #e2e8f0",background:"white",color:"#64748b",fontSize:12}}>↺</button>
-      </div>
-      <div style={{background:"white",borderRadius:14,border:"1px solid #e2e8f0",marginBottom:12,overflow:"hidden"}}>
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{display:"block"}}>
-          {PIPES.map(p=>{const o=val[p.key];return(<g key={p.key}><line x1={p.x1} y1={p.y1} x2={p.x2} y2={p.y2} stroke={o?"#22c55e":"#cbd5e1"} strokeWidth={o?4:3} strokeDasharray={o?"none":"8,5"}/><g onClick={()=>tv(p.key)} style={{cursor:"pointer"}}><circle cx={p.mx} cy={p.my} r={13} fill={o?"#dcfce7":"#fee2e2"} stroke={o?"#22c55e":"#ef4444"} strokeWidth={2}/>{o?<rect x={p.mx-6} y={p.my-2.5} width={12} height={5} rx={2.5} fill="#22c55e"/>:<rect x={p.mx-2.5} y={p.my-6} width={5} height={12} rx={2.5} fill="#ef4444"/>}<text x={p.mx} y={p.my+23} textAnchor="middle" fill={o?"#15803d":"#dc2626"} fontSize={8} fontWeight={700}>{p.lb}</text></g></g>);})}
-          {PIPES.map((p,pi)=>{if(!val[p.key])return null;const t1=((tick+pi*20)%60)/60,t2=((tick+pi*20+30)%60)/60;return(<g key={"f"+pi}><circle cx={p.x1+(p.x2-p.x1)*t1} cy={p.y1+(p.y2-p.y1)*t1} r={3} fill="#22c55e" opacity={0.85}/><circle cx={p.x1+(p.x2-p.x1)*t2} cy={p.y1+(p.y2-p.y1)*t2} r={2} fill="#4ade80" opacity={0.6}/></g>);})}
-          {POS.map((pos,i)=>{
-            const c=caps[i],emp=c.gas==="Boş"||c.mol<0.005;
-            const gO=emp?{color:"#94a3b8",bg:"#f1f5f9"}:gI(c.gas);
-            const r=bR(c.V),P=pr[i],pc=P<0.01?"#94a3b8":P>4?"#ef4444":"#16a34a";
-            return(<g key={i}>
-              <ellipse cx={pos.cx+4} cy={pos.cy+6} rx={r*0.85} ry={r*0.5} fill="rgba(0,0,0,0.05)"/>
-              <circle cx={pos.cx} cy={pos.cy} r={r} fill={gO.bg} stroke={gO.color} strokeWidth={2.5}/>
-              {emp?<text x={pos.cx} y={pos.cy+4} textAnchor="middle" fill="#94a3b8" fontSize={12} fontWeight={700}>Boş</text>:<text x={pos.cx} y={pos.cy-10} textAnchor="middle" fill={gO.color} fontSize={13} fontWeight={900}>{c.gas}</text>}
-              <text x={pos.cx} y={pos.cy+(emp?18:3)} textAnchor="middle" fill="#64748b" fontSize={10}>{c.mol.toFixed(2)} mol</text>
-              <text x={pos.cx} y={pos.cy+(emp?30:15)} textAnchor="middle" fill="#0ea5e9" fontSize={10} fontWeight={700}>{c.V.toFixed(2)} L</text>
-              <text x={pos.cx} y={pos.cy+(emp?42:27)} textAnchor="middle" fill={pc} fontSize={12} fontWeight={900}>{P.toFixed(3)} atm</text>
-              <circle cx={pos.cx} cy={pos.cy+r} r={4} fill={gO.color} opacity={0.5}/>
-              <text x={pos.cx} y={pos.cy-r-9} textAnchor="middle" fill="#64748b" fontSize={10} fontWeight={700}>{i+1}. Kap</text>
-            </g>);
-          })}
-        </svg>
-      </div>
-      <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-        {caps.map((c,i)=>{
-          const P=pr[i],bc=["#7c3aed","#0284c7","#be185d"][i],bg=["#faf5ff","#f0f9ff","#fff1f2"][i];
-          return(<div key={i} style={{flex:"1 1 170px",background:bg,borderRadius:12,padding:"10px 12px",border:`1.5px solid ${bc}44`}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}><span style={{fontSize:13,fontWeight:800,color:bc}}>{i+1}. Kap</span><span style={{fontSize:12,fontWeight:900,color:P<0.01?"#94a3b8":"#16a34a"}}>{P.toFixed(3)} atm</span></div>
-            <div style={{marginBottom:8}}>
-              <div style={{fontSize:10,color:"#94a3b8",marginBottom:4,fontWeight:600}}>GAZ CİNSİ</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:3}}>{[...GLIST.map(g=>g.label),"Boş"].map(g=>{const act=c.gas===g;const gO=g==="Boş"?{color:"#94a3b8",bg:"#f1f5f9"}:gI(g);return(<button key={g} onClick={()=>chg(i,g)} style={{padding:"2px 6px",borderRadius:9,border:"none",fontSize:10,fontWeight:700,background:act?gO.bg:"white",color:act?gO.color:"#cbd5e1",outline:act?`1.5px solid ${gO.color}`:"1px solid #e2e8f0"}}>{g}</button>);})}</div>
-            </div>
-            {[{lb:"n (mol)",f:"mol",mn:0,mx:2,st:0.01,cl:"#7c3aed",fm:2},{lb:"V (L)",f:"V",mn:0.5,mx:10,st:0.1,cl:"#0ea5e9",fm:2},{lb:"T (K)",f:"T",mn:100,mx:800,st:5,cl:"#f59e0b",fm:0}].map(({lb,f,mn,mx,st,cl,fm})=>(
-              <div key={f} style={{marginBottom:8}}>
-                <span style={{fontSize:10,color:"#94a3b8",fontWeight:600}}>{lb}</span>
-                <div style={{display:"flex",alignItems:"center",gap:6,marginTop:3}}>
-                  <input type="range" min={mn} max={mx} step={st} value={c[f]} onChange={e=>upd(i,f,parseFloat(e.target.value))} style={{flex:1,accentColor:cl}}/>
-                  <input type="number" min={mn} max={mx} step={st} value={Number(c[f]).toFixed(fm)} onChange={e=>{const v=parseFloat(e.target.value);if(!isNaN(v)&&v>=mn&&v<=mx)upd(i,f,v);}} style={{width:52,padding:"2px 4px",borderRadius:6,border:`1.5px solid ${cl}66`,color:cl,fontWeight:700,fontSize:11,textAlign:"center",background:"white",outline:"none"}}/>
-                </div>
-              </div>
-            ))}
-          </div>);
-        })}
-      </div>
-    </div>
-  );
+  let pipeSVG="",balloonSVG="";
+  for(const p of PIPES){
+    const o=valves[p.key];
+    const vc=o?"#22c55e":"#ef4444";
+    const t1=((animTick+PIPES.indexOf(p)*20)%60)/60,t2=((animTick+PIPES.indexOf(p)*20+30)%60)/60;
+    const fx1=(p.x1+(p.x2-p.x1)*t1).toFixed(1),fy1=(p.y1+(p.y2-p.y1)*t1).toFixed(1);
+    const fx2=(p.x1+(p.x2-p.x1)*t2).toFixed(1),fy2=(p.y1+(p.y2-p.y1)*t2).toFixed(1);
+    pipeSVG+=`<line x1="${p.x1.toFixed(1)}" y1="${p.y1.toFixed(1)}" x2="${p.x2.toFixed(1)}" y2="${p.y2.toFixed(1)}" stroke="${o?"#22c55e":"#cbd5e1"}" stroke-width="${o?4:3}" stroke-dasharray="${o?"none":"8,5"}"/>
+    <g onclick="toggleD4Valve('${p.key}')" style="cursor:pointer">
+      <circle cx="${p.mx.toFixed(1)}" cy="${p.my.toFixed(1)}" r="13" fill="${o?"#dcfce7":"#fee2e2"}" stroke="${vc}" stroke-width="2"/>
+      ${o?`<rect x="${(p.mx-6).toFixed(1)}" y="${(p.my-2.5).toFixed(1)}" width="12" height="5" rx="2.5" fill="#22c55e"/>`:
+          `<rect x="${(p.mx-2.5).toFixed(1)}" y="${(p.my-6).toFixed(1)}" width="5" height="12" rx="2.5" fill="#ef4444"/>`}
+      <text x="${p.mx.toFixed(1)}" y="${(p.my+22).toFixed(1)}" text-anchor="middle" fill="${vc}" font-size="8" font-weight="700">${p.lb}</text>
+    </g>
+    ${o?`<circle cx="${fx1}" cy="${fy1}" r="3" fill="#22c55e" opacity="0.85"/><circle cx="${fx2}" cy="${fy2}" r="2" fill="#4ade80" opacity="0.6"/>`:""}`;
+  }
+  for(let i=0;i<3;i++){
+    const c=caps[i],emp=c.gas==="Boş"||c.mol<0.005;
+    const gO=emp?{color:"#94a3b8",bg:"#f1f5f9"}:gI(c.gas);
+    const r=bR(c.V),P=pr[i],pc=P<0.01?"#94a3b8":P>4?"#ef4444":"#16a34a";
+    const pos=POS[i];
+    balloonSVG+=`
+      <ellipse cx="${pos.cx+4}" cy="${pos.cy+6}" rx="${(r*0.85).toFixed(1)}" ry="${(r*0.5).toFixed(1)}" fill="rgba(0,0,0,0.05)"/>
+      <circle cx="${pos.cx}" cy="${pos.cy}" r="${r}" fill="${gO.bg}" stroke="${gO.color}" stroke-width="2.5"/>
+      ${emp?`<text x="${pos.cx}" y="${pos.cy+4}" text-anchor="middle" fill="#94a3b8" font-size="12" font-weight="700">Boş</text>`:
+            `<text x="${pos.cx}" y="${pos.cy-10}" text-anchor="middle" fill="${gO.color}" font-size="13" font-weight="900">${c.gas}</text>`}
+      <text x="${pos.cx}" y="${pos.cy+(emp?18:3)}" text-anchor="middle" fill="#64748b" font-size="10">${c.mol.toFixed(2)} mol</text>
+      <text x="${pos.cx}" y="${pos.cy+(emp?30:15)}" text-anchor="middle" fill="#0ea5e9" font-size="10" font-weight="700">${c.V.toFixed(2)} L</text>
+      <text x="${pos.cx}" y="${pos.cy+(emp?42:27)}" text-anchor="middle" fill="${pc}" font-size="12" font-weight="900">${P.toFixed(3)} atm</text>
+      <circle cx="${pos.cx}" cy="${pos.cy+r}" r="4" fill="${gO.color}" opacity="0.5"/>
+      <text x="${pos.cx}" y="${pos.cy-r-9}" text-anchor="middle" fill="#64748b" font-size="10" font-weight="700">${i+1}. Kap</text>`;
+  }
+  return`<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">${pipeSVG}${balloonSVG}</svg>`;
 }
 
-// ── EĞİTİM ────────────────────────────────────────────
-function Edu(){
+// ── Render functions ───────────────────────────────────
+function renderD3(){
+  const d3=state.d3;
+  const V=d3.mol*R*d3.T/d3.P0,hit=V>=d3.engel,fP=hit?(d3.mol*R*d3.T)/d3.engel:d3.P0;
+  return`
+  <div class="card">
+    <div style="font-size:14px;font-weight:800;margin-bottom:2px">🚧 Düzenek 3 — Pistonlu + Engelli Silindir</div>
+    <div style="font-size:11px;color:#94a3b8">Gaz ekle → Engele kadar İzobar (P sabit) → Engelten sonra İzokor (V sabit)</div>
+  </div>
+  <div class="card row" style="margin-bottom:8px">
+    <button onclick="toggleD3Valve()" class="btn-open" style="background:${d3.open?"#dcfce7":"#fee2e2"};color:${d3.open?"#16a34a":"#dc2626"};outline:${d3.open?"1.5px solid #22c55e":"1.5px solid #ef4444"}">
+      Musluk M: ${d3.open?"Açık":"Kapalı"}
+    </button>
+    ${d3.open?`
+      <button onclick="d3AddMol(-1)" style="width:24px;height:24px;border-radius:5px;background:#fee2e2;color:#dc2626;font-weight:700">−</button>
+      <input type="range" min="0.05" max="0.5" step="0.05" value="${d3.addM}" oninput="d3SetAddM(this.value)" style="width:80px;accent-color:#22c55e"/>
+      <span style="font-size:11px;color:#22c55e;font-weight:700">${d3.addM.toFixed(2)} mol</span>
+      <button onclick="d3AddMol(1)" style="width:24px;height:24px;border-radius:5px;background:#dcfce7;color:#16a34a;font-weight:700">+</button>
+    `:""}
+    <div class="badge" style="background:${hit?"#fee2e2":"#dcfce7"};color:${hit?"#dc2626":"#16a34a"}">${hit?"🔴 İzokor — V sabit":"🟢 İzobar — P sabit"}</div>
+    <button onclick="d3Reset()" style="padding:4px 10px;border-radius:7px;border:1px solid #e2e8f0;background:white;color:#94a3b8;font-size:10px">↺ Sıfırla</button>
+  </div>
+  ${renderD3SVG(d3)}
+  <div class="card row">
+    <div style="flex:1;min-width:140px">
+      <div class="slider-row">
+        <div class="slider-label-row"><span class="slider-label">T (K)</span><div style="display:flex;align-items:center;gap:4px"><input type="number" min="50" max="1000" step="5" value="${d3.T}" onchange="d3Set('T',this.value)" style="width:60px;padding:2px 5px;border-radius:6px;border:1px solid ${tC(d3.T)};background:#f8fafc;color:${tC(d3.T)};font-size:11px;font-weight:700;text-align:right;outline:none"/><span class="unit">K</span></div></div>
+        <input type="range" min="50" max="1000" step="5" value="${d3.T}" oninput="d3Set('T',this.value)" style="width:100%;accent-color:${tC(d3.T)}"/>
+      </div>
+    </div>
+    <div style="flex:1;min-width:140px">
+      <div class="slider-row">
+        <div class="slider-label-row"><span class="slider-label">P₀ (atm)</span><div style="display:flex;align-items:center;gap:4px"><input type="number" min="0.5" max="3" step="0.1" value="${d3.P0.toFixed(1)}" onchange="d3Set('P0',this.value)" style="width:60px;padding:2px 5px;border-radius:6px;border:1px solid #3b82f6;background:#f8fafc;color:#3b82f6;font-size:11px;font-weight:700;text-align:right;outline:none"/><span class="unit">atm</span></div></div>
+        <input type="range" min="0.5" max="3" step="0.1" value="${d3.P0}" oninput="d3Set('P0',this.value)" style="width:100%;accent-color:#3b82f6"/>
+      </div>
+    </div>
+    <div style="flex:1;min-width:140px">
+      <div class="slider-row">
+        <div class="slider-label-row"><span class="slider-label">Engel (L)</span><div style="display:flex;align-items:center;gap:4px"><input type="number" min="2" max="10" step="0.5" value="${d3.engel.toFixed(1)}" onchange="d3Set('engel',this.value)" style="width:60px;padding:2px 5px;border-radius:6px;border:1px solid #334155;background:#f8fafc;color:#334155;font-size:11px;font-weight:700;text-align:right;outline:none"/><span class="unit">L</span></div></div>
+        <input type="range" min="2" max="10" step="0.5" value="${d3.engel}" oninput="d3Set('engel',this.value)" style="width:100%;accent-color:#334155"/>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderD4(){
+  const {caps,valves}=state.d4;
+  const pr=caps.map(c=>c.V>0&&c.mol>=0?(c.mol*R*c.T)/c.V:0);
+  const allO=Object.values(valves).every(Boolean);
+  const BORDERS=["#7c3aed","#0284c7","#be185d"];
+  const BGS=["#faf5ff","#f0f9ff","#fff1f2"];
+  let kapCards="";
+  for(let i=0;i<3;i++){
+    const c=caps[i],P=pr[i],bc=BORDERS[i],bg=BGS[i];
+    let gasBtns="";
+    for(const g of [...GLIST.map(g=>g.label),"Boş"]){
+      const act=c.gas===g;
+      const gO=g==="Boş"?{color:"#94a3b8",bg:"#f1f5f9"}:gI(g);
+      gasBtns+=`<button onclick="d4ChangeGas(${i},'${g}')" class="gas-btn" style="background:${act?gO.bg:"white"};color:${act?gO.color:"#cbd5e1"};outline:${act?`1.5px solid ${gO.color}`:"1px solid #e2e8f0"}">${g}</button>`;
+    }
+    kapCards+=`<div class="kap-card" style="background:${bg};border:1.5px solid ${bc}44">
+      <div class="kap-header"><span class="kap-title" style="color:${bc}">${i+1}. Kap</span><span class="kap-p" style="color:${P<0.01?"#94a3b8":"#16a34a"}">${P.toFixed(3)} atm</span></div>
+      <div class="gas-label">GAZ CİNSİ</div>
+      <div class="gas-btns">${gasBtns}</div>
+      <div class="field-label">n (mol)</div>
+      <div class="field-row">
+        <input type="range" min="0" max="2" step="0.01" value="${c.mol}" oninput="d4Upd(${i},'mol',this.value)" style="flex:1;accent-color:#7c3aed"/>
+        <input type="number" min="0" max="2" step="0.01" value="${c.mol.toFixed(2)}" onchange="d4Upd(${i},'mol',this.value)" class="field-num" style="border:1.5px solid #7c3aed66;color:#7c3aed"/>
+      </div>
+      <div class="field-label">V (L)</div>
+      <div class="field-row">
+        <input type="range" min="0.5" max="10" step="0.1" value="${c.V}" oninput="d4Upd(${i},'V',this.value)" style="flex:1;accent-color:#0ea5e9"/>
+        <input type="number" min="0.5" max="10" step="0.1" value="${c.V.toFixed(2)}" onchange="d4Upd(${i},'V',this.value)" class="field-num" style="border:1.5px solid #0ea5e966;color:#0ea5e9"/>
+      </div>
+      <div class="field-label">T (K)</div>
+      <div class="field-row">
+        <input type="range" min="100" max="800" step="5" value="${c.T}" oninput="d4Upd(${i},'T',this.value)" style="flex:1;accent-color:#f59e0b"/>
+        <input type="number" min="100" max="800" step="5" value="${c.T}" onchange="d4Upd(${i},'T',this.value)" class="field-num" style="border:1.5px solid #f59e0b66;color:#f59e0b"/>
+      </div>
+    </div>`;
+  }
+  return`
+  <div style="padding:0 0 12px">
+    <div class="card">
+      <div style="font-size:14px;font-weight:800;margin-bottom:2px">🫧 Düzenek 4 — Balon Sistemi</div>
+      <div style="font-size:11px;color:#94a3b8">M1:1↔2 · M2:2↔3 · M3:1↔3 · Musluk açılınca mol transferi & basınç eşitlenmesi</div>
+    </div>
+    <div class="row" style="gap:7px;flex-wrap:wrap;margin-bottom:10px">
+      ${["m1","m2","m3"].map((k,i)=>{const o=valves[k];const lb=["M1:1↔2","M2:2↔3","M3:1↔3"][i];return`<button onclick="toggleD4Valve('${k}')" style="padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;background:${o?"#dcfce7":"#fee2e2"};color:${o?"#15803d":"#dc2626"};outline:2px solid ${o?"#22c55e":"#ef4444"}">${lb}: ${o?"Açık":"Kapalı"}</button>`;}).join("")}
+      <button onclick="d4ToggleAll()" style="padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;background:${allO?"#fef3c7":"#dcfce7"};color:${allO?"#d97706":"#15803d"};outline:2px solid ${allO?"#f59e0b":"#22c55e"}">${allO?"Tümünü Kapat":"Tümünü Aç"}</button>
+      <button onclick="d4Reset()" style="padding:6px 10px;border-radius:20px;border:1.5px solid #e2e8f0;background:white;color:#64748b;font-size:12px">↺</button>
+    </div>
+    <div style="background:white;border-radius:14px;border:1px solid #e2e8f0;margin-bottom:12px;overflow:hidden">
+      ${renderD4SVG(state.d4)}
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">${kapCards}</div>
+  </div>`;
+}
+
+function renderEdu(){
   const laws=[
     {title:"Boyle Yasası",formula:"P₁V₁ = P₂V₂",note:"T sabit",color:"#f97316",
      steps:[{l:"V=2L",n:0.5,V:2,T:300},{l:"V=4L",n:0.5,V:4,T:300},{l:"V=6L",n:0.5,V:6,T:300},{l:"V=8L",n:0.5,V:8,T:300}]},
@@ -245,61 +314,48 @@ function Edu(){
     {title:"Gay-Lussac",formula:"P₁/T₁ = P₂/T₂",note:"V sabit",color:"#22c55e",
      steps:[{l:"T=200K",n:0.5,V:5,T:200},{l:"T=400K",n:0.5,V:5,T:400},{l:"T=600K",n:0.5,V:5,T:600},{l:"T=800K",n:0.5,V:5,T:800}]},
   ];
-  return(
-    <div>{laws.map(law=>(
-      <div key={law.title} style={{background:"white",borderRadius:10,padding:12,border:"1px solid #e2e8f0",marginBottom:8}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}}>
-          <span style={{fontSize:14,fontWeight:800,color:law.color}}>{law.title}</span>
-          <span style={{fontSize:11,fontFamily:"monospace",background:"#f8fafc",padding:"2px 8px",borderRadius:5}}>{law.formula}</span>
-          <span style={{fontSize:10,color:"#94a3b8"}}>{law.note}</span>
-        </div>
-        <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
-            <thead><tr>{["Adım","n","V","T","P","PV"].map(h=><th key={h} style={{padding:"3px 7px",color:"#94a3b8",textAlign:"left",fontWeight:600,borderBottom:"1px solid #f1f5f9"}}>{h}</th>)}</tr></thead>
-            <tbody>{law.steps.map(s=>{const P=(s.n*R*s.T)/s.V;return(<tr key={s.l}><td style={{padding:"3px 7px",color:law.color,fontWeight:700}}>{s.l}</td><td style={{padding:"3px 7px"}}>{s.n}</td><td style={{padding:"3px 7px",color:"#0ea5e9"}}>{s.V}</td><td style={{padding:"3px 7px",color:tC(s.T)}}>{s.T}</td><td style={{padding:"3px 7px",color:pC(P),fontWeight:700}}>{P.toFixed(3)}</td><td style={{padding:"3px 7px"}}>{(P*s.V).toFixed(3)}</td></tr>);})}</tbody>
-          </table>
-        </div>
+  return laws.map(law=>`
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+        <span style="font-size:14px;font-weight:800;color:${law.color}">${law.title}</span>
+        <span style="font-size:11px;font-family:monospace;background:#f8fafc;padding:2px 8px;border-radius:5px">${law.formula}</span>
+        <span style="font-size:10px;color:#94a3b8">${law.note}</span>
       </div>
-    ))}</div>
-  );
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead><tr>${["Adım","n","V","T","P","PV"].map(h=>`<th style="padding:3px 7px;color:#94a3b8;text-align:left;font-weight:600;border-bottom:1px solid #f1f5f9">${h}</th>`).join("")}</tr></thead>
+          <tbody>${law.steps.map(s=>{const P=(s.n*R*s.T)/s.V;return`<tr><td style="padding:3px 7px;color:${law.color};font-weight:700">${s.l}</td><td style="padding:3px 7px">${s.n}</td><td style="padding:3px 7px;color:#0ea5e9">${s.V}</td><td style="padding:3px 7px;color:${tC(s.T)}">${s.T}</td><td style="padding:3px 7px;color:${pC(P)};font-weight:700">${P.toFixed(3)}</td><td style="padding:3px 7px">${(P*s.V).toFixed(3)}</td></tr>`;}).join("")}</tbody>
+        </table>
+      </div>
+    </div>`).join("");
 }
 
-// ── ROOT APP ──────────────────────────────────────────
-const TABS=[
-  {id:"d3",icon:"🚧",label:"Düzenek 3"},
-  {id:"d4",icon:"🫧",label:"Düzenek 4"},
-  {id:"edu",icon:"🎓",label:"Eğitim"},
-];
+// ── Event handlers ─────────────────────────────────────
+window.toggleD3Valve=()=>{state.d3={...state.d3,open:!state.d3.open};render();};
+window.d3Set=(k,v)=>{state.d3={...state.d3,[k]:parseFloat(v)};render();};
+window.d3SetAddM=v=>{state.d3={...state.d3,addM:parseFloat(v)};render();};
+window.d3AddMol=dir=>{state.d3={...state.d3,mol:Math.max(0.05,parseFloat((state.d3.mol+dir*state.d3.addM).toFixed(3)))};render();};
+window.d3Reset=()=>{state.d3={...state.d3,mol:0.5,open:false};render();};
+window.toggleD4Valve=k=>{const nv={...state.d4.valves,[k]:!state.d4.valves[k]};const nc=eqD4(state.d4.caps,nv);state.d4={caps:nc,valves:nv};render();};
+window.d4ToggleAll=()=>{const a=Object.values(state.d4.valves).every(Boolean);const nv={m1:!a,m2:!a,m3:!a};const nc=eqD4(state.d4.caps,nv);state.d4={caps:nc,valves:nv};render();};
+window.d4Reset=()=>{state.d4={caps:[{gas:"Ne",mol:0.16,V:2,T:300},{gas:"Boş",mol:0,V:2,T:300},{gas:"SO₃",mol:0.24,V:1,T:300}],valves:{m1:false,m2:false,m3:false}};render();};
+window.d4Upd=(i,f,v)=>{const nc=state.d4.caps.map((c,j)=>j===i?{...c,[f]:parseFloat(v)}:c);const eq=Object.values(state.d4.valves).some(Boolean)?eqD4(nc,state.d4.valves):nc;state.d4={...state.d4,caps:eq};render();};
+window.d4ChangeGas=(i,g)=>{const nc=state.d4.caps.map((c,j)=>{if(j!==i)return c;return g==="Boş"?{...c,gas:"Boş",mol:0}:{...c,gas:g};});const eq=Object.values(state.d4.valves).some(Boolean)?eqD4(nc,state.d4.valves):nc;state.d4={...state.d4,caps:eq};render();};
 
-function App(){
-  const [tab,setTab]=useState("d3");
-  return(
-    <div style={{minHeight:"100vh",background:"#f0f4f8"}}>
-      <div style={{background:"white",borderBottom:"1px solid #e2e8f0",padding:"8px 14px",position:"sticky",top:0,zIndex:100,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
-        <div style={{maxWidth:900,margin:"0 auto",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-          <div>
-            <div style={{fontSize:15,fontWeight:800}}>⚗️ Gaz Laboratuvarı</div>
-            <div style={{fontSize:9,color:"#94a3b8"}}>PV=nRT · İdeal Pistonlar · Gaz Yasaları</div>
-          </div>
-          <div style={{display:"flex",gap:2,flexWrap:"wrap",marginLeft:"auto",background:"#f8fafc",borderRadius:10,padding:3,border:"1px solid #e2e8f0"}}>
-            {TABS.map(t=>(
-              <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:"6px 11px",borderRadius:7,border:"none",fontSize:11,fontWeight:600,background:tab===t.id?"white":"transparent",color:tab===t.id?"#6366f1":"#94a3b8",boxShadow:tab===t.id?"0 1px 3px rgba(0,0,0,0.1)":"none"}}>
-                {t.icon} {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div style={{maxWidth:900,margin:"0 auto",padding:"12px"}}>
-        {tab==="d3"&&<D3/>}
-        {tab==="d4"&&<D4/>}
-        {tab==="edu"&&<Edu/>}
-      </div>
-    </div>
-  );
+const TABS_DATA=[{id:"d3",icon:"🚧",label:"Düzenek 3"},{id:"d4",icon:"🫧",label:"Düzenek 4"},{id:"edu",icon:"🎓",label:"Eğitim"}];
+
+function render(){
+  // Tabs
+  document.getElementById("tabs").innerHTML=TABS_DATA.map(t=>`<button class="tab${state.tab===t.id?" active":""}" onclick="setTab('${t.id}')">${t.icon} ${t.label}</button>`).join("");
+  // Content
+  let html="";
+  if(state.tab==="d3")html=renderD3();
+  else if(state.tab==="d4")html=renderD4();
+  else if(state.tab==="edu")html=renderEdu();
+  document.getElementById("content").innerHTML=html;
 }
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+window.setTab=id=>{state.tab=id;render();};
+render();
 </script>
 </body>
 </html>
